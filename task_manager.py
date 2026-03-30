@@ -1,5 +1,11 @@
 import uuid
 from datetime import datetime
+from enum import Enum
+
+
+class Status(Enum):
+    PENDING = "pending"
+    DONE = "done"
 
 
 class Task:
@@ -8,122 +14,105 @@ class Task:
         self.title = title
         self.description = description
         self.priority = priority
-        self.completed = False
+        self.status = Status.PENDING
         self.created_at = datetime.now()
 
-    def mark_complete(self):
-        self.completed = True
+    def mark_done(self):
+        self.status = Status.DONE
+
+    def is_completed(self):
+        return self.status == Status.DONE
 
     def __repr__(self):
-        return f"<Task {self.title} ({'Done' if self.completed else 'Pending'})>"
+        return f"{self.title} [{self.status.value}]"
 
 
 class TaskManager:
     def __init__(self):
         self.tasks = []
 
-    def add_task(self, title, description="", priority=1):
+    def add(self, title, description="", priority=1):
         task = Task(title, description, priority)
         self.tasks.append(task)
         return task
 
-    def remove_task(self, task_id):
+    def remove(self, task_id):
         self.tasks = [t for t in self.tasks if t.id != task_id]
 
-    def get_task(self, task_id):
-        for task in self.tasks:
-            if task.id == task_id:
-                return task
-        return None
+    def get(self, task_id):
+        return next((t for t in self.tasks if t.id == task_id), None)
 
-    def list_tasks(self):
+    def all(self):
         return self.tasks
 
-    def list_pending(self):
-        return [t for t in self.tasks if not t.completed]
+    def filter_by_priority(self, min_priority):
+        return [t for t in self.tasks if t.priority >= min_priority]
 
-    def list_completed(self):
-        return [t for t in self.tasks if t.completed]
-
-    def mark_complete(self, task_id):
-        task = self.get_task(task_id)
+    def mark_done(self, task_id):
+        task = self.get(task_id)
         if task:
-            task.mark_complete()
+            task.mark_done()
 
-    def sort_by_priority(self):
+    def sort(self):
         self.tasks.sort(key=lambda t: t.priority)
 
-    def clear_completed(self):
-        self.tasks = [t for t in self.tasks if not t.completed]
+    def cleanup(self):
+        self.tasks = [t for t in self.tasks if not t.is_completed()]
 
 
-def seed_tasks(manager: TaskManager):
-    manager.add_task("Buy groceries", "Milk, Eggs, Bread", 2)
-    manager.add_task("Workout", "Gym session", 3)
-    manager.add_task("Read book", "Read 20 pages", 1)
+def seed(manager):
+    manager.add("Buy groceries", priority=2)
+    manager.add("Workout", priority=3)
+    manager.add("Read book", priority=1)
 
 
-def print_tasks(tasks):
-    for task in tasks:
-        print(task)
+def show(tasks):
+    for t in tasks:
+        print(t)
+
+
+def report(tasks):
+    return {
+        "total_tasks": len(tasks),
+        "completed_tasks": len([t for t in tasks if t.is_completed()]),
+    }
+
+
+def print_report(r):
+    print("Report Summary")
+    for k, v in r.items():
+        print(k, ":", v)
 
 
 def demo():
     manager = TaskManager()
-    seed_tasks(manager)
+    seed(manager)
 
-    print("All Tasks:")
-    print_tasks(manager.list_tasks())
+    manager.mark_done(manager.tasks[0].id)
 
-    manager.mark_complete(manager.tasks[0].id)
-
-    print("\nCompleted Tasks:")
-    print_tasks(manager.list_completed())
-
-    print("\nPending Tasks:")
-    print_tasks(manager.list_pending())
+    show(manager.all())
+    print_report(report(manager.tasks))
 
 
-if __name__ == "__main__":
-    demo()
+# filler
+def export(tasks):
+    return [{"id": t.id, "title": t.title} for t in tasks]
 
 
-# Extra filler logic to increase size
-def generate_report(tasks):
-    report = {
-        "total": len(tasks),
-        "completed": len([t for t in tasks if t.completed]),
-        "pending": len([t for t in tasks if not t.completed]),
-    }
-    return report
-
-
-def print_report(report):
-    for key, value in report.items():
-        print(f"{key}: {value}")
-
-
-def run_reporting():
+def import_data(data):
     manager = TaskManager()
-    seed_tasks(manager)
-    report = generate_report(manager.tasks)
-    print_report(report)
-
-
-def helper_format_task(task):
-    return {
-        "id": task.id,
-        "title": task.title,
-        "priority": task.priority,
-    }
-
-
-def export_tasks(tasks):
-    return [helper_format_task(t) for t in tasks]
-
-
-def import_tasks(data):
-    manager = TaskManager()
-    for item in data:
-        manager.add_task(item["title"], priority=item["priority"])
+    for d in data:
+        manager.add(d["title"])
     return manager
+
+
+def stats(tasks):
+    return {
+        "high_priority": len([t for t in tasks if t.priority > 2]),
+        "low_priority": len([t for t in tasks if t.priority <= 2]),
+    }
+
+
+def debug(tasks):
+    for t in tasks:
+        print(t.id, t.title)
