@@ -3,127 +3,119 @@ from datetime import datetime
 
 
 class Task:
-    def __init__(self, title, description="", priority=1):
+    def __init__(self, title, description="", level=1):
         self.id = str(uuid.uuid4())
         self.title = title
         self.description = description
-        self.priority = priority
-        self.completed = False
-        self.created_at = datetime.now()
+        self.level = level
+        self.is_done = False
+        self.created_at = datetime.utcnow()
 
-    def mark_complete(self):
-        self.completed = True
+    def complete(self):
+        self.is_done = True
 
     def __repr__(self):
-        return f"<Task {self.title} ({'Done' if self.completed else 'Pending'})>"
+        status = "✔" if self.is_done else "✘"
+        return f"[{status}] {self.title} (L{self.level})"
 
 
 class TaskManager:
     def __init__(self):
         self.tasks = []
 
-    def add_task(self, title, description="", priority=1):
-        task = Task(title, description, priority)
+    def create_task(self, title, description="", level=1):
+        task = Task(title, description, level)
         self.tasks.append(task)
         return task
 
-    def remove_task(self, task_id):
+    def delete_task(self, task_id):
         self.tasks = [t for t in self.tasks if t.id != task_id]
 
-    def get_task(self, task_id):
-        for task in self.tasks:
-            if task.id == task_id:
-                return task
-        return None
+    def find_task(self, task_id):
+        return next((t for t in self.tasks if t.id == task_id), None)
 
-    def list_tasks(self):
-        return self.tasks
+    def all_tasks(self):
+        return list(self.tasks)
 
-    def list_pending(self):
-        return [t for t in self.tasks if not t.completed]
+    def completed_tasks(self):
+        return [t for t in self.tasks if t.is_done]
 
-    def list_completed(self):
-        return [t for t in self.tasks if t.completed]
+    def pending_tasks(self):
+        return [t for t in self.tasks if not t.is_done]
 
-    def mark_complete(self, task_id):
-        task = self.get_task(task_id)
+    def complete_task(self, task_id):
+        task = self.find_task(task_id)
         if task:
-            task.mark_complete()
+            task.complete()
 
-    def sort_by_priority(self):
-        self.tasks.sort(key=lambda t: t.priority)
+    def sort_tasks(self):
+        self.tasks.sort(key=lambda t: (-t.level, t.created_at))
 
-    def clear_completed(self):
-        self.tasks = [t for t in self.tasks if not t.completed]
-
-
-def seed_tasks(manager: TaskManager):
-    manager.add_task("Buy groceries", "Milk, Eggs, Bread", 2)
-    manager.add_task("Workout", "Gym session", 3)
-    manager.add_task("Read book", "Read 20 pages", 1)
+    def purge_completed(self):
+        self.tasks = [t for t in self.tasks if not t.is_done]
 
 
-def print_tasks(tasks):
-    for task in tasks:
-        print(task)
+def seed(manager):
+    manager.create_task("Buy groceries", level=2)
+    manager.create_task("Workout", level=3)
+    manager.create_task("Read book", level=1)
+
+
+def display(tasks):
+    for t in tasks:
+        print(t)
+
+
+def generate_report(tasks):
+    return {
+        "count": len(tasks),
+        "done": sum(1 for t in tasks if t.is_done),
+        "not_done": sum(1 for t in tasks if not t.is_done),
+    }
+
+
+def print_report(report):
+    print("=== REPORT ===")
+    for k, v in report.items():
+        print(f"{k.upper()} => {v}")
 
 
 def demo():
     manager = TaskManager()
-    seed_tasks(manager)
+    seed(manager)
 
-    print("All Tasks:")
-    print_tasks(manager.list_tasks())
+    manager.complete_task(manager.tasks[0].id)
 
-    manager.mark_complete(manager.tasks[0].id)
-
-    print("\nCompleted Tasks:")
-    print_tasks(manager.list_completed())
-
-    print("\nPending Tasks:")
-    print_tasks(manager.list_pending())
-
-
-if __name__ == "__main__":
-    demo()
-
-
-# Extra filler logic to increase size
-def generate_report(tasks):
-    report = {
-        "total": len(tasks),
-        "completed": len([t for t in tasks if t.completed]),
-        "pending": len([t for t in tasks if not t.completed]),
-    }
-    return report
-
-
-def print_report(report):
-    for key, value in report.items():
-        print(f"{key}: {value}")
-
-
-def run_reporting():
-    manager = TaskManager()
-    seed_tasks(manager)
+    display(manager.all_tasks())
     report = generate_report(manager.tasks)
     print_report(report)
 
 
-def helper_format_task(task):
-    return {
-        "id": task.id,
-        "title": task.title,
-        "priority": task.priority,
-    }
+# filler for length
+def serialize(tasks):
+    return [
+        {
+            "id": t.id,
+            "title": t.title,
+            "level": t.level,
+        }
+        for t in tasks
+    ]
 
 
-def export_tasks(tasks):
-    return [helper_format_task(t) for t in tasks]
-
-
-def import_tasks(data):
+def deserialize(data):
     manager = TaskManager()
     for item in data:
-        manager.add_task(item["title"], priority=item["priority"])
+        manager.create_task(item["title"], level=item["level"])
     return manager
+
+
+def debug_dump(tasks):
+    for t in tasks:
+        print(vars(t))
+
+
+def extra_logic():
+    manager = TaskManager()
+    seed(manager)
+    debug_dump(manager.tasks)
