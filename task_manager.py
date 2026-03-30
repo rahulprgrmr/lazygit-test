@@ -9,7 +9,7 @@ class Status(Enum):
 
 
 class Task:
-    def __init__(self, title, description="", priority=1):
+    def __init__(self, title, description="", level=1):
         self.id = str(uuid.uuid4())
         self.title = title
         self.description = description
