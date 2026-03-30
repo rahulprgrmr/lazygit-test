@@ -1,5 +1,11 @@
 import uuid
 from datetime import datetime
+from enum import Enum
+
+
+class Status(Enum):
+    PENDING = "pending"
+    DONE = "done"
 
 
 class Task:
@@ -7,115 +13,106 @@ class Task:
         self.id = str(uuid.uuid4())
         self.title = title
         self.description = description
-        self.level = level
-        self.is_done = False
-        self.created_at = datetime.utcnow()
+        self.priority = priority
+        self.status = Status.PENDING
+        self.created_at = datetime.now()
 
-    def complete(self):
-        self.is_done = True
+    def mark_done(self):
+        self.status = Status.DONE
+
+    def is_completed(self):
+        return self.status == Status.DONE
 
     def __repr__(self):
-        status = "✔" if self.is_done else "✘"
-        return f"[{status}] {self.title} (L{self.level})"
+        return f"{self.title} [{self.status.value}]"
 
 
 class TaskManager:
     def __init__(self):
         self.tasks = []
 
-    def create_task(self, title, description="", level=1):
-        task = Task(title, description, level)
+    def add(self, title, description="", priority=1):
+        task = Task(title, description, priority)
         self.tasks.append(task)
         return task
 
-    def delete_task(self, task_id):
+    def remove(self, task_id):
         self.tasks = [t for t in self.tasks if t.id != task_id]
 
-    def find_task(self, task_id):
+    def get(self, task_id):
         return next((t for t in self.tasks if t.id == task_id), None)
 
-    def all_tasks(self):
-        return list(self.tasks)
+    def all(self):
+        return self.tasks
 
-    def completed_tasks(self):
-        return [t for t in self.tasks if t.is_done]
+    def filter_by_priority(self, min_priority):
+        return [t for t in self.tasks if t.priority >= min_priority]
 
-    def pending_tasks(self):
-        return [t for t in self.tasks if not t.is_done]
-
-    def complete_task(self, task_id):
-        task = self.find_task(task_id)
+    def mark_done(self, task_id):
+        task = self.get(task_id)
         if task:
-            task.complete()
+            task.mark_done()
 
-    def sort_tasks(self):
-        self.tasks.sort(key=lambda t: (-t.level, t.created_at))
+    def sort(self):
+        self.tasks.sort(key=lambda t: t.priority)
 
-    def purge_completed(self):
-        self.tasks = [t for t in self.tasks if not t.is_done]
+    def cleanup(self):
+        self.tasks = [t for t in self.tasks if not t.is_completed()]
 
 
 def seed(manager):
-    manager.create_task("Buy groceries", level=2)
-    manager.create_task("Workout", level=3)
-    manager.create_task("Read book", level=1)
+    manager.add("Buy groceries", priority=2)
+    manager.add("Workout", priority=3)
+    manager.add("Read book", priority=1)
 
 
-def display(tasks):
+def show(tasks):
     for t in tasks:
         print(t)
 
 
-def generate_report(tasks):
+def report(tasks):
     return {
-        "count": len(tasks),
-        "done": sum(1 for t in tasks if t.is_done),
-        "not_done": sum(1 for t in tasks if not t.is_done),
+        "total_tasks": len(tasks),
+        "completed_tasks": len([t for t in tasks if t.is_completed()]),
     }
 
 
-def print_report(report):
-    print("=== REPORT ===")
-    for k, v in report.items():
-        print(f"{k.upper()} => {v}")
+def print_report(r):
+    print("Report Summary")
+    for k, v in r.items():
+        print(k, ":", v)
 
 
 def demo():
     manager = TaskManager()
     seed(manager)
 
-    manager.complete_task(manager.tasks[0].id)
+    manager.mark_done(manager.tasks[0].id)
 
-    display(manager.all_tasks())
-    report = generate_report(manager.tasks)
-    print_report(report)
-
-
-# filler for length
-def serialize(tasks):
-    return [
-        {
-            "id": t.id,
-            "title": t.title,
-            "level": t.level,
-        }
-        for t in tasks
-    ]
+    show(manager.all())
+    print_report(report(manager.tasks))
 
 
-def deserialize(data):
+# filler
+def export(tasks):
+    return [{"id": t.id, "title": t.title} for t in tasks]
+
+
+def import_data(data):
     manager = TaskManager()
-    for item in data:
-        manager.create_task(item["title"], level=item["level"])
+    for d in data:
+        manager.add(d["title"])
     return manager
 
 
-def debug_dump(tasks):
+def stats(tasks):
+    return {
+        "high_priority": len([t for t in tasks if t.priority > 2]),
+        "low_priority": len([t for t in tasks if t.priority <= 2]),
+    }
+
+
+def debug(tasks):
     for t in tasks:
-        print(vars(t))
-
-
-def extra_logic():
-    manager = TaskManager()
-    seed(manager)
-    debug_dump(manager.tasks)
+        print(t.id, t.title)
